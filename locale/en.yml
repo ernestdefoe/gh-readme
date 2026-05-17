@@ -1,0 +1,9 @@
+ernestdefoe-gh-readme:
+  forum:
+    loading: "Loading README from GitHub…"
+    error_generic: "Could not fetch the README."
+    error_not_found: "README not found — repo may be private or have no README."
+    error_rate_limit: "GitHub rate limit reached. Try again in a few minutes."
+  admin:
+    settings:
+      heading: GitHub README Paste

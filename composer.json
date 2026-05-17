@@ -1,0 +1,50 @@
+{
+    "name": "ernestdefoe/gh-readme",
+    "description": "Paste a GitHub repo URL into the Flarum composer and the URL is auto-replaced with the rendered README markdown.",
+    "keywords": [
+        "flarum",
+        "flarum-extension",
+        "github",
+        "readme",
+        "composer"
+    ],
+    "type": "flarum-extension",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Ernest Defoe",
+            "email": "ernestdefoe@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/ernestdefoe/gh-readme/issues",
+        "source": "https://github.com/ernestdefoe/gh-readme"
+    },
+    "require": {
+        "php": "^8.2",
+        "flarum/core": "^2.0",
+        "guzzlehttp/guzzle": "^7.0"
+    },
+    "suggest": {
+        "flarum/markdown": "Required for the inserted README markdown to render with headings, lists, code blocks, etc. — without it, the raw markdown still ends up in the post but renders as plain text."
+    },
+    "autoload": {
+        "psr-4": {
+            "Ernestdefoe\\GhReadme\\": "src/"
+        }
+    },
+    "extra": {
+        "flarum-extension": {
+            "title": "GitHub README Paste",
+            "category": "feature",
+            "icon": {
+                "name": "fab fa-github",
+                "backgroundColor": "#24292f",
+                "color": "#fff"
+            }
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
