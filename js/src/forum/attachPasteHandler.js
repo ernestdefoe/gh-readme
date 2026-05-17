@@ -1,57 +1,99 @@
 import app from 'flarum/forum/app';
 
 /**
- * Attaches a one-time `paste` listener to the composer's textarea
- * that intercepts GitHub repo URLs and replaces them with the
- * rendered README markdown from the backend proxy.
+ * Attach a one-time `paste` listener to the composer editor that
+ * intercepts GitHub repo URLs and replaces them with the rendered
+ * README markdown from the backend proxy.
  *
- * Lifecycle:
- *   1. User pastes (or types and triggers a paste, e.g., autofill).
- *   2. If the pasted text trimmed is a GitHub repo root URL, we
- *      e.preventDefault() and insert a user-visible loading marker
- *      at the cursor via the editor driver (keeps Mithril's value
- *      stream in sync).
- *   3. POST /api/gh-readme/fetch — backend validates, fetches the
- *      README via the GitHub REST API, rewrites relative URLs, and
- *      returns processed markdown.
- *   4. On success: replace the loading marker with the markdown.
- *      On failure: replace the loading marker with the original URL
- *      so the user's paste isn't silently lost, and surface the
- *      backend's error message via app.alerts.
+ * Supports both editor drivers:
  *
- * Idempotency: the listener gets attached at most once per textarea
- * via a __ghReadmeHooked sentinel. Flarum's composer reuses the same
- * editor DOM across redraws — re-hooking would cause double fetches.
+ *   - **BasicEditorDriver** (Flarum default, plain `<textarea>` +
+ *     flarum/markdown rendering at display time). We insert a
+ *     visible inline "Loading…" marker in the textarea, fetch, then
+ *     swap the marker for the markdown source. The post renders as
+ *     formatted markdown via flarum/markdown.
+ *
+ *   - **TiptapEditorDriver** (fof/rich-text — WYSIWYG composer
+ *     backed by Tiptap/ProseMirror). The driver's
+ *     `insertAtCursor(text, false)` overload PARSES the text as
+ *     markdown and inserts it as rich nodes, so the user sees the
+ *     formatted README appear in the composer immediately. We use a
+ *     Flarum alert toast for the loading hint rather than an inline
+ *     marker — finding and replacing a specific text node inside a
+ *     ProseMirror document is awkward and brittle.
+ *
+ * Detection: `editor.editor` is the underlying Tiptap instance on
+ * fof/rich-text's driver; absent on the basic driver. The check is
+ * minification-stable (an object-property lookup) and survives the
+ * `BasicEditorDriver` ↔ `TiptapEditorDriver` class-name mangling
+ * that any production webpack build would do.
+ *
+ * The paste listener is attached in the capture phase so it runs
+ * BEFORE Tiptap's own ProseMirror paste plugin — calling
+ * `e.preventDefault()` then stops Tiptap from also inserting the URL
+ * as plain text.
+ *
+ * Idempotency: a `__ghReadmeHooked` sentinel on the target element
+ * prevents double-hooking when Mithril remounts the composer.
  */
 export default function attachPasteHandler(editor) {
-  const el = editor.el;
+  const isRichText = !!(editor && editor.editor && typeof editor.editor === 'object');
+
+  /* Basic: editor.el is the <textarea>.
+   * Tiptap: editor.el is the contenteditable view OR can be reached
+   *         via the Tiptap instance's view.dom. We prefer the
+   *         driver's own .el reference when present so any future
+   *         wrapper element added by fof/rich-text still receives
+   *         the listener. */
+  const el = (editor && editor.el)
+    || (isRichText && editor.editor.view && editor.editor.view.dom)
+    || null;
   if (!el || el.__ghReadmeHooked) return;
   el.__ghReadmeHooked = true;
 
-  el.addEventListener('paste', (e) => {
-    const pasted = (e.clipboardData && e.clipboardData.getData('text')) || '';
-    const trimmed = pasted.trim();
+  el.addEventListener(
+    'paste',
+    (e) => {
+      const pasted = (e.clipboardData && e.clipboardData.getData('text')) || '';
+      const trimmed = pasted.trim();
 
-    if (!isGithubRepoRootUrl(trimmed)) return;
+      if (!isGithubRepoRootUrl(trimmed)) return;
 
-    e.preventDefault();
-    handleGithubPaste(editor, el, trimmed);
-  });
+      e.preventDefault();
+      e.stopPropagation();
+      handleGithubPaste(editor, el, trimmed, isRichText);
+    },
+    /* capture: */ true
+  );
 }
 
 /**
- * Strict allowlist — only accepts ROOT repo URLs (https://github.com/owner/repo),
- * optionally with trailing slash. NOT /blob/<branch>/<file> (those are file
- * links, not repos), NOT /tree/<branch> (we always fetch HEAD's README).
+ * Strict allowlist — only accepts ROOT repo URLs.
+ * Rejects: /tree/<branch>, /blob/<branch>/<file>, /pull/<n>, /issues, etc.
  */
 function isGithubRepoRootUrl(s) {
   return /^https:\/\/(?:www\.)?github\.com\/[A-Za-z0-9._-]{1,100}\/[A-Za-z0-9._-]{1,100}\/?$/i.test(s);
 }
 
-async function handleGithubPaste(editor, el, url) {
-  const marker = makeLoadingMarker();
+async function handleGithubPaste(editor, el, url, isRichText) {
+  /* Two divergent loading affordances: */
+  let marker = null;
+  let loadingAlertKey = null;
 
-  editor.insertAtCursor(marker);
+  if (isRichText) {
+    /* Tiptap — show a toast. The Mithril alert manager returns a key
+     * we can dismiss when the fetch resolves. */
+    loadingAlertKey = app.alerts.show(
+      { type: 'info', dismissible: false },
+      'Loading README from GitHub…'
+    );
+  } else {
+    /* Textarea — drop an inline italic marker the user can see at
+     * the cursor position. Random ID so concurrent pastes don't
+     * collide on string replace. */
+    marker = makeLoadingMarker();
+    editor.insertAtCursor(marker);
+  }
 
   try {
     const response = await app.request({
@@ -65,42 +107,48 @@ async function handleGithubPaste(editor, el, url) {
       throw new Error('Empty README returned.');
     }
 
-    replaceInTextarea(el, marker, '\n\n' + markdown.trim() + '\n\n');
+    if (isRichText) {
+      /* insertAtCursor(text, false) — escape=false tells the Tiptap
+       * driver to PARSE markdown into rich nodes instead of inserting
+       * literal characters. After preventDefault on the paste event,
+       * the cursor is still at the position where the URL would have
+       * landed, so this inserts in the right place. */
+      editor.insertAtCursor(markdown.trim(), false);
+    } else {
+      replaceInTextarea(el, marker, '\n\n' + markdown.trim() + '\n\n');
+    }
   } catch (err) {
     const errMsg = pluckErrorMessage(err) || 'Could not fetch the README.';
-    /* Restore the original URL so the user can correct or re-paste. */
-    replaceInTextarea(el, marker, url);
+
+    if (isRichText) {
+      /* Tiptap: nothing to clean up in the document (we didn't insert
+       * a marker). Inserting the original URL as escaped text gives
+       * the user back what they pasted so they can edit and retry. */
+      editor.insertAtCursor(url, true);
+    } else {
+      /* Textarea: swap the loading marker back to the original URL. */
+      replaceInTextarea(el, marker, url);
+    }
+
     app.alerts.show({ type: 'error' }, errMsg);
+  } finally {
+    if (loadingAlertKey !== null) {
+      app.alerts.dismiss(loadingAlertKey);
+    }
   }
 }
 
-/**
- * Italic markdown line with a random ID so multiple concurrent pastes
- * don't collide on replacement. Renders as visible "Loading README…
- * (id)" in the post body until replaced.
- */
 function makeLoadingMarker() {
   const id = Math.random().toString(36).slice(2, 10);
   return '\n\n*Loading README from GitHub… (' + id + ')*\n\n';
 }
 
-/**
- * Replace the first occurrence of `find` in the textarea with
- * `replacement`, then dispatch a synthetic `input` event so Flarum's
- * composer state stream picks up the change.
- */
 function replaceInTextarea(el, find, replacement) {
   const value = el.value;
   const idx = value.indexOf(find);
-  if (idx < 0) {
-    /* Marker got nuked (user undid, or rewrote that region); nothing
-     * to replace — silently drop the result rather than appending it
-     * to the wrong spot. */
-    return;
-  }
+  if (idx < 0) return;
   const newValue = value.slice(0, idx) + replacement + value.slice(idx + find.length);
   el.value = newValue;
-  /* Move caret to end of the inserted content for natural typing flow. */
   const cursor = idx + replacement.length;
   el.setSelectionRange(cursor, cursor);
   el.dispatchEvent(new Event('input', { bubbles: true }));

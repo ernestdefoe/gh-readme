@@ -12,6 +12,15 @@ Paste a GitHub repo URL into the Flarum composer and the URL is **auto-replaced*
 
 Subsequent pastes of the same repo are served from a 10-minute server-side cache so a popular forum doesn't burn GitHub's rate limit.
 
+### Works with both composer types
+
+| Composer | Behavior |
+| --- | --- |
+| **Default Flarum** (textarea + `flarum/markdown`) | URL replaced inline by the markdown source. The post renders as formatted markdown at display time. A visible italic "Loading…" marker shows in the textarea during the fetch. |
+| **`fof/rich-text`** (Tiptap WYSIWYG) | URL replaced by rich nodes — headings, paragraphs, lists, code blocks, blockquotes, images all appear formatted in the composer immediately. A toast notification shows during the fetch (no inline marker — finding a specific text node inside a ProseMirror document is brittle). |
+
+Detection is automatic via the presence of `editor.editor` on the active driver. No setting needed.
+
 ## Install
 
 ```bash
