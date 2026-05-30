@@ -1,5 +1,11 @@
 # GitHub README Paste — Flarum 2 extension
 
+[![Floxum](https://floxum.com/extension/ernestdefoe/gh-readme/badge/name)](https://floxum.com/extension/ernestdefoe/gh-readme)
+[![Version](https://floxum.com/extension/ernestdefoe/gh-readme/badge/highest-version)](https://floxum.com/extension/ernestdefoe/gh-readme)
+[![Downloads](https://floxum.com/extension/ernestdefoe/gh-readme/badge/downloads)](https://floxum.com/extension/ernestdefoe/gh-readme)
+[![Review](https://floxum.com/extension/ernestdefoe/gh-readme/badge/review)](https://floxum.com/extension/ernestdefoe/gh-readme)
+[![License](https://floxum.com/extension/ernestdefoe/gh-readme/badge/license)](https://floxum.com/extension/ernestdefoe/gh-readme)
+
 Paste a GitHub repo URL into the Flarum composer and the URL is **auto-replaced** with the rendered README markdown.
 
 ## How it works
