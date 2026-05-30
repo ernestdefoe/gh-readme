@@ -68,6 +68,13 @@ Then enable in **Admin → Extensions → GitHub README Paste**.
 - TLS verification on.
 - Endpoint requires an authenticated Flarum actor; throttled by Flarum's standard per-actor API throttler.
 
+## Support
+
+Questions, bug reports, and feature requests:
+
+- **Support forum:** https://ernestdefoe.online
+- **Issues:** https://github.com/ernestdefoe/gh-readme/issues
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
