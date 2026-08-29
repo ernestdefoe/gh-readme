@@ -3,6 +3,16 @@ name: Post release to Flarum support site
 on:
   release:
     types: [published]
+  # Manual trigger. GitHub refuses to re-run any workflow run older than a
+  # month, so when the support site is unreachable at release time the
+  # announcement is permanently unrecoverable without this — which is exactly
+  # what happened while the site was down.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to announce (e.g. v1.2.0). Defaults to the latest release.'
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -11,15 +21,52 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve the release
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          EV_TAG: ${{ github.event.release.tag_name }}
+          EV_NAME: ${{ github.event.release.name }}
+          EV_BODY: ${{ github.event.release.body }}
+          EV_URL: ${{ github.event.release.html_url }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "release" ]; then
+            TAG="$EV_TAG"; NAME="$EV_NAME"; BODY="$EV_BODY"; URL="$EV_URL"
+          else
+            if [ -n "${INPUT_TAG}" ]; then
+              JSON=$(gh release view "$INPUT_TAG" --json tagName,name,body,url)
+            else
+              JSON=$(gh release view --json tagName,name,body,url)
+            fi
+            TAG=$(printf '%s' "$JSON" | jq -r '.tagName')
+            NAME=$(printf '%s' "$JSON" | jq -r '.name // ""')
+            BODY=$(printf '%s' "$JSON" | jq -r '.body // ""')
+            URL=$(printf '%s' "$JSON" | jq -r '.url')
+          fi
+
+          # Multi-line values have to go through the heredoc form or the step
+          # output is truncated at the first newline.
+          {
+            echo "tag=$TAG"
+            echo "url=$URL"
+            echo "name<<__EOF__"; printf '%s\n' "$NAME"; echo "__EOF__"
+            echo "body<<__EOF__"; printf '%s\n' "$BODY"; echo "__EOF__"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Post reply to support discussion
         env:
           FLARUM_FORUM_URL: ${{ vars.FLARUM_FORUM_URL }}
           FLARUM_DISCUSSION_ID: ${{ vars.FLARUM_DISCUSSION_ID }}
           FLARUM_API_KEY: ${{ secrets.FLARUM_API_KEY }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          RELEASE_NAME: ${{ github.event.release.name }}
-          RELEASE_BODY: ${{ github.event.release.body }}
-          RELEASE_URL: ${{ github.event.release.html_url }}
+          RELEASE_TAG: ${{ steps.rel.outputs.tag }}
+          RELEASE_NAME: ${{ steps.rel.outputs.name }}
+          RELEASE_BODY: ${{ steps.rel.outputs.body }}
+          RELEASE_URL: ${{ steps.rel.outputs.url }}
           REPO_NAME: ${{ github.event.repository.name }}
         run: |
           set -euo pipefail
