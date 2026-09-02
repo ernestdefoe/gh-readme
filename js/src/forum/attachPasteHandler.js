@@ -37,7 +37,22 @@ import app from 'flarum/forum/app';
  * prevents double-hooking when Mithril remounts the composer.
  */
 export default function attachPasteHandler(editor) {
-  const isRichText = !!(editor && editor.editor && typeof editor.editor === 'object');
+  /*
+   * 🚨 Decided at PASTE time, not here.
+   *
+   * A rich driver may not have built its editor yet when onbuild runs — Scribe
+   * loads Tiptap asynchronously, so `editor.editor` is undefined for a moment
+   * after the composer appears. Deciding once, here, meant every Scribe
+   * composer was permanently classified as a plain textarea.
+   *
+   * That failure was silent and total: the textarea path inserts a marker,
+   * fetches, then looks for that marker in `editor.value`. On a rich editor
+   * `value` is the document's PLAIN TEXT, so the blank lines around the marker
+   * are gone by the time we search for them, indexOf misses, and the helper
+   * returns without a word — leaving "*Loading README from GitHub…*" in the
+   * post, which is then what gets published.
+   */
+  const isRichText = () => !!(editor && editor.editor && typeof editor.editor === 'object');
 
   /* Basic: editor.el is the <textarea>.
    * Tiptap: editor.el is the contenteditable view OR can be reached
@@ -46,7 +61,7 @@ export default function attachPasteHandler(editor) {
    *         wrapper element added by fof/rich-text still receives
    *         the listener. */
   const el = (editor && editor.el)
-    || (isRichText && editor.editor.view && editor.editor.view.dom)
+    || (isRichText() && editor.editor.view && editor.editor.view.dom)
     || null;
   if (!el || el.__ghReadmeHooked) return;
   el.__ghReadmeHooked = true;
@@ -61,7 +76,7 @@ export default function attachPasteHandler(editor) {
 
       e.preventDefault();
       e.stopPropagation();
-      handleGithubPaste(editor, el, trimmed, isRichText);
+      handleGithubPaste(editor, el, trimmed, isRichText());
     },
     /* capture: */ true
   );
@@ -115,7 +130,16 @@ async function handleGithubPaste(editor, el, url, isRichText) {
        * landed, so this inserts in the right place. */
       editor.insertAtCursor(markdown.trim(), false);
     } else {
-      replaceInTextarea(el, marker, '\n\n' + markdown.trim() + '\n\n');
+      if (! replaceInTextarea(el, marker, '\n\n' + markdown.trim() + '\n\n')) {
+        /*
+         * The marker is gone or unrecognisable — the editor rewrote it, or the
+         * author edited over it while we were fetching. Say so rather than
+         * finishing quietly, because the alternative is a draft that still
+         * reads "Loading README from GitHub…" and an author with no reason to
+         * think anything went wrong.
+         */
+        app.alerts.show({ type: 'error' }, 'The README arrived but could not be inserted — the placeholder was no longer in the post.');
+      }
     }
   } catch (err) {
     const errMsg = pluckErrorMessage(err) || 'Could not fetch the README.';
@@ -143,15 +167,39 @@ function makeLoadingMarker() {
   return '\n\n*Loading README from GitHub… (' + id + ')*\n\n';
 }
 
+/**
+ * Swap the marker for the fetched README.
+ *
+ * @returns {boolean} whether the marker was found and replaced.
+ *
+ * 🚨 Reports failure instead of returning in silence. The marker is visible
+ * text sitting in somebody's draft; if we cannot find it to remove it, the
+ * worst outcome is publishing "*Loading README from GitHub…*" as though it were
+ * the post. A caller that knows the swap failed can at least say so.
+ */
 function replaceInTextarea(el, find, replacement) {
   const value = el.value;
   const idx = value.indexOf(find);
-  if (idx < 0) return;
-  const newValue = value.slice(0, idx) + replacement + value.slice(idx + find.length);
-  el.value = newValue;
-  const cursor = idx + replacement.length;
-  el.setSelectionRange(cursor, cursor);
+
+  // Whitespace around the marker may not survive a round-trip through a rich
+  // document, so fall back to the marker's own trimmed text before giving up.
+  const needle = idx >= 0 ? find : find.trim();
+  const at = idx >= 0 ? idx : value.indexOf(needle);
+
+  if (at < 0) return false;
+
+  el.value = value.slice(0, at) + replacement + value.slice(at + needle.length);
+
+  // Only a real textarea has a selection to restore; a contenteditable does
+  // not, and calling this on one throws.
+  if (typeof el.setSelectionRange === 'function') {
+    const cursor = at + replacement.length;
+    el.setSelectionRange(cursor, cursor);
+  }
+
   el.dispatchEvent(new Event('input', { bubbles: true }));
+
+  return true;
 }
 
 function pluckErrorMessage(err) {
