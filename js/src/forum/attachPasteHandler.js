@@ -117,18 +117,39 @@ async function handleGithubPaste(editor, el, url, isRichText) {
       body: { url },
     });
 
-    const markdown = response && response.data && response.data.attributes && response.data.attributes.markdown;
+    const attrs = (response && response.data && response.data.attributes) || {};
+    const markdown = attrs.markdown;
+    const html = attrs.html;
+
     if (typeof markdown !== 'string' || markdown.length === 0) {
       throw new Error('Empty README returned.');
     }
 
     if (isRichText) {
-      /* insertAtCursor(text, false) — escape=false tells the Tiptap
-       * driver to PARSE markdown into rich nodes instead of inserting
-       * literal characters. After preventDefault on the paste event,
-       * the cursor is still at the position where the URL would have
-       * landed, so this inserts in the right place. */
-      editor.insertAtCursor(markdown.trim(), false);
+      /*
+       * 🚨 Insert HTML, not Markdown.
+       *
+       * This used to call insertAtCursor(markdown, false), whose escape=false
+       * asks the driver to PARSE Markdown into rich nodes. fof/rich-text does.
+       * Scribe is also Tiptap and deliberately has no Markdown anywhere in its
+       * stack, so it inserted the source verbatim — one paragraph per line,
+       * every `#` and `**` intact — on a forum with no Markdown extension to
+       * rescue them at render time. The README arrived looking like a text file.
+       *
+       * Tiptap parses HTML natively in both drivers, so HTML is the format that
+       * needs no assumption about who is listening. The old path stays as a
+       * fallback for a driver that exposes neither Tiptap's commands nor an
+       * insertContent of its own.
+       */
+      const tiptap = editor.editor;
+      const inserted =
+        typeof html === 'string' && html.length > 0 && tiptap && tiptap.commands && typeof tiptap.commands.insertContent === 'function';
+
+      if (inserted) {
+        tiptap.commands.insertContent(html);
+      } else {
+        editor.insertAtCursor(markdown.trim(), false);
+      }
     } else {
       if (! replaceInTextarea(el, marker, '\n\n' + markdown.trim() + '\n\n')) {
         /*

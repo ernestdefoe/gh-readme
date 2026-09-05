@@ -72,6 +72,20 @@ class FetchReadmeController implements RequestHandlerInterface
                 'id' => $owner . '/' . $repo,
                 'attributes' => [
                     'markdown' => $result['markdown'],
+                    /*
+                     * 🚨 Rendered here, not left to the editor.
+                     *
+                     * The paste handler used to hand raw Markdown to a rich
+                     * editor and trust it to parse it — which fof/rich-text
+                     * does and Scribe, deliberately, does not. On a Scribe
+                     * forum the source went in verbatim, one paragraph per
+                     * line, and stayed that way: there is no Markdown
+                     * extension there to rescue it at render time.
+                     *
+                     * Tiptap parses HTML natively in both drivers, so sending
+                     * HTML removes the guess entirely.
+                     */
+                    'html' => (new MarkdownToHtml())->convert($result['markdown']),
                     'owner' => $result['owner'],
                     'repo' => $result['repo'],
                     'sourceUrl' => $result['sourceUrl'],
