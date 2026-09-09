@@ -176,6 +176,23 @@ class MarkdownToHtml
 
         $text = $this->escape($text);
 
+        /*
+         * 🚨 Images BEFORE links, because `![alt](url)` is a link pattern with
+         * one character in front of it.
+         *
+         * There was no image rule at all, so every screenshot in every README
+         * came out as a literal "!" followed by a link to the .png — which is
+         * exactly what a reader saw on a documentation post whose whole point
+         * was the screenshots. The link rule matched the `[alt](url)` part and
+         * left the bang stranded in the prose.
+         *
+         * A README's images are its most useful half; a link to a raw .png is
+         * not a substitute for one.
+         */
+        $text = preg_replace_callback('/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^)]*&quot;)?\)/', function ($m) {
+            return '<img src="' . $m[2] . '" alt="' . $m[1] . '">';
+        }, $text) ?? $text;
+
         // Links before emphasis: a link's text may itself be bold.
         $text = preg_replace_callback('/\[([^\]]+)\]\(([^)\s]+)\)/', function ($m) {
             return '<a href="' . $m[2] . '">' . $m[1] . '</a>';
