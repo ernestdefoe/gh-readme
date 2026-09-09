@@ -12,6 +12,7 @@
 namespace Ernestdefoe\GhReadme\Api;
 
 use Ernestdefoe\GhReadme\Service\GithubReadmeFetcher;
+use Ernestdefoe\GhReadme\Service\MarkdownToHtml;
 use Flarum\Http\RequestUtil;
 use InvalidArgumentException;
 use Laminas\Diactoros\Response\JsonResponse;

@@ -1,6 +1,16 @@
 <?php
 
-namespace ErnestDefoe\GhReadme\Service;
+namespace Ernestdefoe\GhReadme\Service;
+
+/*
+ * 🚨 `Ernestdefoe`, lowercase d — the same as every other file here and as the
+ * PSR-4 prefix in composer.json. This file declared `ErnestDefoe` and was
+ * therefore not autoloadable at all: Composer matches the namespace prefix as
+ * a string, so one capital letter makes the class invisible.
+ *
+ * It survived review because macOS has a case-insensitive filesystem, so the
+ * FILE is always found locally and only the deployed Linux host disagrees.
+ */
 
 /**
  * Turns README Markdown into the small HTML vocabulary a Flarum post accepts.

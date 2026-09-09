@@ -27,7 +27,7 @@
         "guzzlehttp/guzzle": "^7.0"
     },
     "suggest": {
-        "flarum/markdown": "Required for the inserted README markdown to render with headings, lists, code blocks, etc. — without it, the raw markdown still ends up in the post but renders as plain text."
+        "flarum/markdown": "Required for the inserted README markdown to render with headings, lists, code blocks, etc. \u2014 without it, the raw markdown still ends up in the post but renders as plain text."
     },
     "autoload": {
         "psr-4": {
@@ -46,5 +46,13 @@
         }
     },
     "minimum-stability": "dev",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ernestdefoe\\GhReadme\\Tests\\": "tests/"
+        }
+    }
 }
