@@ -63,6 +63,7 @@ class GithubReadmeFetcher
         protected CacheRepository $cache,
         protected SettingsRepositoryInterface $settings,
         protected LoggerInterface $log,
+        protected ImageMirror $images,
     ) {
     }
 
@@ -201,6 +202,21 @@ class GithubReadmeFetcher
             : 'HEAD';
 
         $markdown = $this->processMarkdown($raw, $owner, $repo, $defaultBranch);
+
+        /*
+         * 🚨 Mirror the images BEFORE caching, and before returning.
+         *
+         * processMarkdown has just pointed every relative image at
+         * raw.githubusercontent.com, which is correct for a public repo and
+         * useless for a private one: the reader's browser fetches those URLs
+         * with no token and gets a 404, so the post publishes with holes. The
+         * person who pasted it never sees the holes, because their own browser
+         * is signed in to GitHub — which is exactly how this survived.
+         *
+         * The mirror is a no-op unless a token is configured, so public repos
+         * keep using GitHub's CDN.
+         */
+        $markdown = $this->images->mirror($markdown, $owner, $repo);
 
         $result = [
             'markdown' => $markdown,
