@@ -92,6 +92,37 @@ class MarkdownToHtml
                 continue;
             }
 
+            /*
+             * A GitHub table: a row of cells, then a |---|---| separator. Scribe
+             * renders <table> natively; without this a README's table arrived
+             * as one paragraph full of pipes.
+             */
+            if ($this->isTableRow($line) && $i + 1 < $count && $this->isTableSeparator($lines[$i + 1])) {
+                $head = $this->tableCells($line);
+                $i += 2;
+                $rows = [];
+
+                while ($i < $count && $this->isTableRow($lines[$i])) {
+                    $rows[] = $this->tableCells($lines[$i]);
+                    $i++;
+                }
+
+                $html = '<table><thead><tr>';
+                foreach ($head as $cell) {
+                    $html .= '<th>' . $this->inline($cell) . '</th>';
+                }
+                $html .= '</tr></thead><tbody>';
+                foreach ($rows as $row) {
+                    $html .= '<tr>';
+                    foreach (array_keys($head) as $n) {
+                        $html .= '<td>' . $this->inline($row[$n] ?? '') . '</td>';
+                    }
+                    $html .= '</tr>';
+                }
+                $out[] = $html . '</tbody></table>';
+                continue;
+            }
+
             if (preg_match('/^\s*>\s?(.*)$/', $line, $m)) {
                 $quote = [$m[1]];
                 $i++;
@@ -111,7 +142,11 @@ class MarkdownToHtml
              * emitting a paragraph per line is what made the pasted README look
              * shattered even where the formatting was otherwise right.
              */
-            $para = [];
+            // The first line always belongs to this paragraph: a line that only
+            // LOOKS like the start of a block (a pipe row with no separator under
+            // it) would otherwise be taken by nothing, and the loop never moves.
+            $para = [trim($lines[$i])];
+            $i++;
 
             while ($i < $count && trim($lines[$i]) !== '' && ! $this->startsBlock($lines[$i])) {
                 $para[] = trim($lines[$i]);
@@ -129,7 +164,30 @@ class MarkdownToHtml
     /** Would this line begin a different block? */
     private function startsBlock(string $line): bool
     {
-        return (bool) preg_match('/^\s*(```|#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s?|(?:---+|\*\*\*+|___+)\s*$)/', $line);
+        return (bool) preg_match('/^\s*(```|#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s?|\|.*\|\s*$|(?:---+|\*\*\*+|___+)\s*$)/', $line);
+    }
+
+    /** A table row: starts with a pipe (GitHub tables in READMEs always do). */
+    private function isTableRow(string $line): bool
+    {
+        return (bool) preg_match('/^\s*\|.*\|\s*$/', $line);
+    }
+
+    /** The |---|:---:| line under a table's header. */
+    private function isTableSeparator(string $line): bool
+    {
+        return (bool) preg_match('/^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/', $line);
+    }
+
+    /** @return list<string> */
+    private function tableCells(string $line): array
+    {
+        // An escaped pipe (\|) is a literal pipe inside a cell: park it first.
+        $line = str_replace('\|', "\x00", trim($line));
+        $line = trim($line, '|');
+        $cells = explode('|', $line);
+
+        return array_map(fn ($c) => str_replace("\x00", '|', trim($c)), $cells);
     }
 
     /**
