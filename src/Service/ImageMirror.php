@@ -56,6 +56,14 @@ class ImageMirror
     private const MAX_BYTES = 5 * 1024 * 1024;
     private const MAX_IMAGES = 20;
 
+    /**
+     * 🚨 Outbound calls per README, whatever they find. MAX_IMAGES only counts
+     * images actually MIRRORED, and every candidate costs a HEAD first — so a
+     * README with two hundred public screenshots made two hundred sequential
+     * calls (up to 15 s each) inside one member's paste request.
+     */
+    private const MAX_CHECKS = 40;
+
     public function __construct(
         protected Filesystem $filesystem,
         protected SettingsRepositoryInterface $settings,
@@ -107,6 +115,11 @@ class ImageMirror
             'verify' => true,
             'headers' => ['User-Agent' => 'flarum-gh-readme'],
         ]);
+
+        if (count($urls) > self::MAX_CHECKS) {
+            $this->log->info('[gh-readme] checking only the first '.self::MAX_CHECKS.' of '.count($urls).' images for '.$owner.'/'.$repo);
+            $urls = array_slice($urls, 0, self::MAX_CHECKS);
+        }
 
         $replacements = [];
         $done = 0;
