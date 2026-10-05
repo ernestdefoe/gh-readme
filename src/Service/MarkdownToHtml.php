@@ -248,12 +248,12 @@ class MarkdownToHtml
          * not a substitute for one.
          */
         $text = preg_replace_callback('/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^)]*&quot;)?\)/', function ($m) {
-            return '<img src="' . $m[2] . '" alt="' . $m[1] . '">';
+            return $this->safeUrl($m[2]) ? '<img src="' . $m[2] . '" alt="' . $m[1] . '">' : $m[1];
         }, $text) ?? $text;
 
         // Links before emphasis: a link's text may itself be bold.
         $text = preg_replace_callback('/\[([^\]]+)\]\(([^)\s]+)\)/', function ($m) {
-            return '<a href="' . $m[2] . '">' . $m[1] . '</a>';
+            return $this->safeUrl($m[2]) ? '<a href="' . $m[2] . '">' . $m[1] . '</a>' : $m[1];
         }, $text) ?? $text;
 
         $text = preg_replace('/\*\*([^*]+)\*\*/', '<strong>$1</strong>', $text) ?? $text;
@@ -261,6 +261,21 @@ class MarkdownToHtml
         $text = preg_replace('/(?<![\w_])_([^_\n]+)_(?![\w_])/', '<em>$1</em>', $text) ?? $text;
 
         return preg_replace_callback('/\x00(\d+)\x00/', fn ($m) => $codes[(int) $m[1]] ?? '', $text) ?? $text;
+    }
+
+    /**
+     * http, https, mailto, or no scheme at all (a relative path, //host, or
+     * #anchor). A README is someone else's text, and javascript:, data: and
+     * the like must not become a live link or image on the forum. The check
+     * runs on the decoded value, stripped of the whitespace and control
+     * characters a browser ignores inside a scheme.
+     */
+    private function safeUrl(string $escaped): bool
+    {
+        $url = preg_replace('/[\x00-\x20\x7F]+/', '', html_entity_decode($escaped, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+
+        return ! preg_match('/^([a-z][a-z0-9+.-]*):/i', $url, $m)
+            || in_array(strtolower($m[1]), ['http', 'https', 'mailto'], true);
     }
 
     private function escape(string $text): string

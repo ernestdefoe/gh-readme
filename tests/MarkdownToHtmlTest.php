@@ -47,4 +47,26 @@ class MarkdownToHtmlTest extends TestCase
         $this->assertStringContainsString('<a href="https://example.com">the docs</a>', $html);
         $this->assertStringContainsString('<img src="https://example.com/s.png" alt="shot">', $html);
     }
+
+    /**
+     * A README is someone else's text. A javascript: or data: address in one
+     * must not become a live link or image in the forum's HTML.
+     */
+    public function test_only_safe_addresses_become_links_and_images(): void
+    {
+        $md = new MarkdownToHtml();
+
+        foreach (['javascript:alert(1)', 'JavaScript:alert(1)', 'data:text/html;base64,PHNjcmlwdD4=', 'vbscript:x', 'file:///etc/passwd'] as $bad) {
+            $html = $md->convert('[click](' . $bad . ') and ![pic](' . $bad . ')');
+
+            $this->assertStringNotContainsString('href=', $html, $bad);
+            $this->assertStringNotContainsString('<img', $html, $bad);
+            $this->assertStringContainsString('click', $html, $bad);
+        }
+
+        foreach (['https://example.com/a', 'http://example.com/a', 'mailto:me@example.com', '/docs/setup.md', 'docs/setup.md', '#installation', '//example.com/a'] as $good) {
+            $this->assertStringContainsString('<a href="' . $good . '">x</a>', $md->convert('[x](' . $good . ')'), $good);
+            $this->assertStringContainsString('<img src="' . $good . '"', $md->convert('![x](' . $good . ')'), $good);
+        }
+    }
 }
