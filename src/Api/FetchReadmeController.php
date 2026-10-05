@@ -14,6 +14,7 @@ namespace Ernestdefoe\GhReadme\Api;
 use Ernestdefoe\GhReadme\Service\GithubReadmeFetcher;
 use Ernestdefoe\GhReadme\Service\MarkdownToHtml;
 use Flarum\Http\RequestUtil;
+use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use InvalidArgumentException;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
@@ -26,16 +27,19 @@ use RuntimeException;
  *
  * Body: { "url": "https://github.com/owner/repo" }
  *
- * Auth: registered users only. Guests get a 401. Anyone authenticated
- * can call this — there's no per-permission gate because (a) the data
- * is fully public (any README on github.com is web-readable already),
- * (b) the action is essentially a read-through cache, and (c) we
- * already constrain inputs to github.com and apply Flarum's standard
- * per-actor throttling.
+ * Auth: registered users only. Guests get a 401. Members may fetch PUBLIC
+ * repos only; private repos (readable by the owner's token) are for admins.
+ *
+ * 🚨 Throttled here. Core's flood control covers only new posts and
+ * discussions, NOT this route, and every uncached call costs GitHub API
+ * quota on the owner's token plus image downloads.
  */
 class FetchReadmeController implements RequestHandlerInterface
 {
-    public function __construct(protected GithubReadmeFetcher $fetcher)
+    /** Fetches per member per ten minutes; cached READMEs count too, they're cheap. */
+    private const PER_MEMBER = 20;
+
+    public function __construct(protected GithubReadmeFetcher $fetcher, protected CacheRepository $cache)
     {
     }
 
@@ -43,6 +47,14 @@ class FetchReadmeController implements RequestHandlerInterface
     {
         $actor = RequestUtil::getActor($request);
         $actor->assertRegistered();
+
+        if (! $actor->isAdmin()) {
+            $bucket = 'gh-readme:rate:'.$actor->id.':'.intdiv(time(), 600);
+            $this->cache->add($bucket, 0, 600);
+            if ($this->cache->increment($bucket) > self::PER_MEMBER) {
+                return $this->error('Too many README fetches — try again in a few minutes.', 429);
+            }
+        }
 
         $body = (array) ($request->getParsedBody() ?? []);
         $url = isset($body['url']) ? (string) $body['url'] : '';
@@ -58,7 +70,7 @@ class FetchReadmeController implements RequestHandlerInterface
         }
 
         try {
-            $result = $this->fetcher->fetch($owner, $repo);
+            $result = $this->fetcher->fetch($owner, $repo, $actor->isAdmin());
         } catch (RuntimeException $e) {
             $code = $e->getCode();
             if ($code < 400 || $code > 599) {

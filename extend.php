@@ -27,13 +27,9 @@ return [
 
     /*
      * POST /api/gh-readme/fetch — proxy endpoint the composer paste
-     * handler calls. Authenticated callers only (we cap rate to keep
-     * GitHub's 60/hour-per-IP unauth limit from saturating).
-     *
-     * Throttling note: ThrottleApi already covers this route for
-     * session-authenticated callers. Token-authenticated callers
-     * bypass it (Flarum 2 design — see CLAUDE.md §16) but those are
-     * the operator's own API tokens; not a guest surface.
+     * handler calls. Registered members only; private repos for admins
+     * only, and members are rate-limited in the controller (core's flood
+     * control does NOT cover this route).
      */
     (new Extend\Routes('api'))
         ->post('/gh-readme/fetch', 'gh-readme.fetch', FetchReadmeController::class),

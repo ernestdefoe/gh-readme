@@ -132,22 +132,35 @@ class GithubReadmeFetcher
      * network) — the controller turns these into a 4xx/5xx JSON
      * error the frontend handles.
      */
-    public function fetch(string $owner, string $repo): array
+    public function fetch(string $owner, string $repo, bool $allowPrivate = false): array
     {
         $key = $this->cacheKey($owner, $repo);
         $ttl = $this->cacheTtl();
 
         if ($cached = $this->cache->get($key)) {
+            // A README an admin fetched from a private repo is cached too; it
+            // must never be handed to someone who couldn't have fetched it.
+            if (! empty($cached['private']) && ! $allowPrivate) {
+                throw new RuntimeException('README not found — repo may be private or have no README.', 404);
+            }
+
             return array_merge($cached, ['cached' => true]);
         }
 
-        $client = new Client([
-            'timeout' => 15,
-            'connect_timeout' => 10,
-            'http_errors' => false,
-            'verify' => true,
-            'headers' => $this->requestHeaders(),
-        ]);
+        $client = $this->client();
+
+        $private = $this->isPrivate($client, $owner, $repo);
+
+        /*
+         * 🚨 The token is the forum OWNER's, and it may read their private
+         * repos. Every member can call this endpoint, so without this check a
+         * member could read any private README the owner's token can see, and
+         * have its images mirrored into public assets. Private repos are for
+         * admins only; to anyone else they look exactly like a missing repo.
+         */
+        if ($private && ! $allowPrivate) {
+            throw new RuntimeException('README not found — repo may be private or have no README.', 404);
+        }
 
         $url = sprintf('https://api.github.com/repos/%s/%s/readme', rawurlencode($owner), rawurlencode($repo));
 
@@ -223,6 +236,7 @@ class GithubReadmeFetcher
             'owner' => $owner,
             'repo' => $repo,
             'sourceUrl' => "https://github.com/$owner/$repo",
+            'private' => $private,
         ];
         $this->cache->put($key, $result, $ttl);
 
@@ -342,6 +356,46 @@ class GithubReadmeFetcher
         }
 
         return $headers;
+    }
+
+    /**
+     * Whether the repo is private. Only asked when a token is configured:
+     * without one, GitHub serves public repos only, so there is nothing to
+     * guard. Anything but a clear "public" answer counts as private, so a
+     * GitHub hiccup can never open a private repo to a member.
+     */
+    protected function client(): Client
+    {
+        return new Client([
+            'timeout' => 15,
+            'connect_timeout' => 10,
+            'http_errors' => false,
+            'verify' => true,
+            'headers' => $this->requestHeaders(),
+        ]);
+    }
+
+    private function isPrivate(Client $client, string $owner, string $repo): bool
+    {
+        if (! isset($this->requestHeaders()['Authorization'])) {
+            return false;
+        }
+
+        $url = sprintf('https://api.github.com/repos/%s/%s', rawurlencode($owner), rawurlencode($repo));
+
+        try {
+            $response = $client->get($url);
+        } catch (RequestException $e) {
+            return true;
+        }
+
+        if ($response->getStatusCode() === 404) {
+            return false; // the README call below reports the 404 itself
+        }
+
+        $json = json_decode((string) $response->getBody(), true);
+
+        return ! (is_array($json) && ($json['private'] ?? null) === false);
     }
 
     private function cacheKey(string $owner, string $repo): string
