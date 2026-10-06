@@ -70,10 +70,8 @@ Then enable in **Admin → Extensions → GitHub README Paste**.
 
 ## Support
 
-Questions, bug reports, and feature requests:
-
-- **Support forum:** https://ernestdefoe.online
-- **Issues:** https://github.com/ernestdefoe/gh-readme/issues
+- **Support forum:** [GitHub README Paste on ernestdefoe.online](https://ernestdefoe.online/d/72)
+- **Bug reports:** [GitHub issues](https://github.com/ernestdefoe/gh-readme/issues)
 
 ## License
 
