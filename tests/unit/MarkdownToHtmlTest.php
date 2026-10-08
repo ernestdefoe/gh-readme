@@ -57,7 +57,7 @@ class MarkdownToHtmlTest extends TestCase
         $md = new MarkdownToHtml();
 
         foreach (['javascript:alert(1)', 'JavaScript:alert(1)', 'data:text/html;base64,PHNjcmlwdD4=', 'vbscript:x', 'file:///etc/passwd'] as $bad) {
-            $html = $md->convert('[click](' . $bad . ') and ![pic](' . $bad . ')');
+            $html = $md->convert('[click]('.$bad.') and ![pic]('.$bad.')');
 
             $this->assertStringNotContainsString('href=', $html, $bad);
             $this->assertStringNotContainsString('<img', $html, $bad);
@@ -65,8 +65,8 @@ class MarkdownToHtmlTest extends TestCase
         }
 
         foreach (['https://example.com/a', 'http://example.com/a', 'mailto:me@example.com', '/docs/setup.md', 'docs/setup.md', '#installation', '//example.com/a'] as $good) {
-            $this->assertStringContainsString('<a href="' . $good . '">x</a>', $md->convert('[x](' . $good . ')'), $good);
-            $this->assertStringContainsString('<img src="' . $good . '"', $md->convert('![x](' . $good . ')'), $good);
+            $this->assertStringContainsString('<a href="'.$good.'">x</a>', $md->convert('[x]('.$good.')'), $good);
+            $this->assertStringContainsString('<img src="'.$good.'"', $md->convert('![x]('.$good.')'), $good);
         }
     }
 }

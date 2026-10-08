@@ -58,7 +58,7 @@ class MarkdownToHtml
 
                 $i++; // the closing fence, or the end of the input
 
-                $out[] = '<pre>' . $this->escape(implode("\n", $body)) . '</pre>';
+                $out[] = '<pre>'.$this->escape(implode("\n", $body)).'</pre>';
                 continue;
             }
 
@@ -75,7 +75,7 @@ class MarkdownToHtml
 
             if (preg_match('/^(#{1,6})\s+(.*)$/', $line, $m)) {
                 $level = strlen($m[1]);
-                $out[] = "<h$level>" . $this->inline($m[2]) . "</h$level>";
+                $out[] = "<h$level>".$this->inline($m[2])."</h$level>";
                 $i++;
                 continue;
             }
@@ -109,17 +109,17 @@ class MarkdownToHtml
 
                 $html = '<table><thead><tr>';
                 foreach ($head as $cell) {
-                    $html .= '<th>' . $this->inline($cell) . '</th>';
+                    $html .= '<th>'.$this->inline($cell).'</th>';
                 }
                 $html .= '</tr></thead><tbody>';
                 foreach ($rows as $row) {
                     $html .= '<tr>';
                     foreach (array_keys($head) as $n) {
-                        $html .= '<td>' . $this->inline($row[$n] ?? '') . '</td>';
+                        $html .= '<td>'.$this->inline($row[$n] ?? '').'</td>';
                     }
                     $html .= '</tr>';
                 }
-                $out[] = $html . '</tbody></table>';
+                $out[] = $html.'</tbody></table>';
                 continue;
             }
 
@@ -132,7 +132,7 @@ class MarkdownToHtml
                     $i++;
                 }
 
-                $out[] = '<blockquote><p>' . $this->inline(implode(' ', $quote)) . '</p></blockquote>';
+                $out[] = '<blockquote><p>'.$this->inline(implode(' ', $quote)).'</p></blockquote>';
                 continue;
             }
 
@@ -153,7 +153,7 @@ class MarkdownToHtml
                 $i++;
             }
 
-            $out[] = '<p>' . $this->inline(implode(' ', $para)) . '</p>';
+            $out[] = '<p>'.$this->inline(implode(' ', $para)).'</p>';
         }
 
         return implode("\n", $out);
@@ -202,14 +202,14 @@ class MarkdownToHtml
 
             // A wrapped continuation line belongs to the item above it.
             while ($i < $count && trim($lines[$i]) !== '' && preg_match('/^\s{2,}\S/', $lines[$i]) && ! $this->startsBlock(trim($lines[$i]))) {
-                $text .= ' ' . trim($lines[$i]);
+                $text .= ' '.trim($lines[$i]);
                 $i++;
             }
 
-            $items[] = '<li>' . $this->inline($text) . '</li>';
+            $items[] = '<li>'.$this->inline($text).'</li>';
         }
 
-        return ['<' . $tag . '>' . implode('', $items) . '</' . $tag . '>', $i];
+        return ['<'.$tag.'>'.implode('', $items).'</'.$tag.'>', $i];
     }
 
     /**
@@ -225,9 +225,9 @@ class MarkdownToHtml
         $codes = [];
 
         $text = preg_replace_callback('/`([^`]+)`/', function ($m) use (&$codes) {
-            $codes[] = '<code>' . $this->escape($m[1]) . '</code>';
+            $codes[] = '<code>'.$this->escape($m[1]).'</code>';
 
-            return "\x00" . (count($codes) - 1) . "\x00";
+            return "\x00".(count($codes) - 1)."\x00";
         }, $text) ?? $text;
 
         $text = $this->escape($text);
@@ -246,12 +246,12 @@ class MarkdownToHtml
          * not a substitute for one.
          */
         $text = preg_replace_callback('/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;[^)]*&quot;)?\)/', function ($m) {
-            return $this->safeUrl($m[2]) ? '<img src="' . $m[2] . '" alt="' . $m[1] . '">' : $m[1];
+            return $this->safeUrl($m[2]) ? '<img src="'.$m[2].'" alt="'.$m[1].'">' : $m[1];
         }, $text) ?? $text;
 
         // Links before emphasis: a link's text may itself be bold.
         $text = preg_replace_callback('/\[([^\]]+)\]\(([^)\s]+)\)/', function ($m) {
-            return $this->safeUrl($m[2]) ? '<a href="' . $m[2] . '">' . $m[1] . '</a>' : $m[1];
+            return $this->safeUrl($m[2]) ? '<a href="'.$m[2].'">'.$m[1].'</a>' : $m[1];
         }, $text) ?? $text;
 
         $text = preg_replace('/\*\*([^*]+)\*\*/', '<strong>$1</strong>', $text) ?? $text;

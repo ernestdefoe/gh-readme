@@ -23,7 +23,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 use RuntimeException;
 
 /**
- * POST /api/gh-readme/fetch
+ * POST /api/gh-readme/fetch.
  *
  * Body: { "url": "https://github.com/owner/repo" }
  *
@@ -76,13 +76,14 @@ class FetchReadmeController implements RequestHandlerInterface
             if ($code < 400 || $code > 599) {
                 $code = 502;
             }
+
             return $this->error($e->getMessage(), $code);
         }
 
         return new JsonResponse([
             'data' => [
                 'type' => 'gh-readme',
-                'id' => $owner . '/' . $repo,
+                'id' => $owner.'/'.$repo,
                 'attributes' => [
                     'markdown' => $result['markdown'],
                     /*

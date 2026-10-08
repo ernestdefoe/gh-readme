@@ -31,13 +31,13 @@ class AutoloadableTest extends TestCase
         $this->assertTrue(
             class_exists($class) || interface_exists($class) || trait_exists($class),
             "$file declares $class, and the autoloader cannot find it. "
-                . 'Check the namespace against the psr-4 prefix in composer.json, including its capitals.'
+                .'Check the namespace against the psr-4 prefix in composer.json, including its capitals.'
         );
     }
 
     public static function classes(): array
     {
-        $root = dirname(__DIR__, 2) . '/src';
+        $root = dirname(__DIR__, 2).'/src';
         $cases = [];
 
         $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root));
@@ -54,8 +54,8 @@ class AutoloadableTest extends TestCase
                 continue;
             }
 
-            $name = trim($ns[1]) . '\\' . $cls[1];
-            $cases[$name] = [$name, str_replace($root . '/', '', $file->getPathname())];
+            $name = trim($ns[1]).'\\'.$cls[1];
+            $cases[$name] = [$name, str_replace($root.'/', '', $file->getPathname())];
         }
 
         return $cases;

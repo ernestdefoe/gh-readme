@@ -123,7 +123,7 @@ class GithubReadmeFetcher
      *     'repo'     => 'bar',
      *     'sourceUrl'=> 'https://github.com/foo/bar',
      *     'cached'   => true|false,
-     *   ]
+     *   ].
      *
      * Throws RuntimeException on any GitHub failure (404, rate-limit,
      * network) — the controller turns these into a 4xx/5xx JSON
@@ -164,7 +164,8 @@ class GithubReadmeFetcher
         try {
             $response = $client->get($url);
         } catch (RequestException $e) {
-            $this->log->warning('[gh-readme] network failure for ' . $url . ': ' . $e->getMessage());
+            $this->log->warning('[gh-readme] network failure for '.$url.': '.$e->getMessage());
+
             throw new RuntimeException('Could not reach GitHub.', 502, $e);
         }
 
@@ -177,6 +178,7 @@ class GithubReadmeFetcher
             if ($remaining === '0') {
                 throw new RuntimeException('GitHub rate limit reached. Try again in a few minutes.', 429);
             }
+
             throw new RuntimeException('GitHub denied the request (403).', 403);
         }
         if ($status >= 400) {
@@ -263,7 +265,8 @@ class GithubReadmeFetcher
             function ($m) use ($rawBase) {
                 $url = $this->resolveRelative($m[2], $rawBase);
                 $title = $m[3] ?? '';
-                return '![' . $m[1] . '](' . $url . $title . ')';
+
+                return '!['.$m[1].']('.$url.$title.')';
             },
             $md
         );
@@ -280,7 +283,8 @@ class GithubReadmeFetcher
                 }
                 $url = $this->resolveRelative($url, $blobBase);
                 $title = $m[3] ?? '';
-                return '[' . $m[1] . '](' . $url . $title . ')';
+
+                return '['.$m[1].']('.$url.$title.')';
             },
             $md
         );
@@ -290,7 +294,8 @@ class GithubReadmeFetcher
             '/<img\s+([^>]*?)src\s*=\s*"([^"]+)"/i',
             function ($m) use ($rawBase) {
                 $url = $this->resolveRelative($m[2], $rawBase);
-                return '<img ' . $m[1] . 'src="' . $url . '"';
+
+                return '<img '.$m[1].'src="'.$url.'"';
             },
             $md
         );
@@ -300,7 +305,8 @@ class GithubReadmeFetcher
             '/<a\s+([^>]*?)href\s*=\s*"([^"#][^"]*)"/i',
             function ($m) use ($blobBase) {
                 $url = $this->resolveRelative($m[2], $blobBase);
-                return '<a ' . $m[1] . 'href="' . $url . '"';
+
+                return '<a '.$m[1].'href="'.$url.'"';
             },
             $md
         );
@@ -308,7 +314,7 @@ class GithubReadmeFetcher
         // Trim trailing whitespace per line; preserve blank lines for paragraph breaks.
         $md = preg_replace('/[ \t]+$/m', '', $md);
 
-        return rtrim($md) . "\n";
+        return rtrim($md)."\n";
     }
 
     /**
@@ -318,16 +324,23 @@ class GithubReadmeFetcher
     private function resolveRelative(string $url, string $base): string
     {
         $url = trim($url);
-        if ($url === '') return $url;
-        if (preg_match('/^(https?|data|mailto|ftp|tel):/i', $url)) return $url;
-        if (str_starts_with($url, '//')) return 'https:' . $url;
+        if ($url === '') {
+            return $url;
+        }
+        if (preg_match('/^(https?|data|mailto|ftp|tel):/i', $url)) {
+            return $url;
+        }
+        if (str_starts_with($url, '//')) {
+            return 'https:'.$url;
+        }
 
         // Strip leading ./ and / so concat with $base works regardless.
         $url = ltrim($url, '/');
         if (str_starts_with($url, './')) {
             $url = substr($url, 2);
         }
-        return $base . $url;
+
+        return $base.$url;
     }
 
     private function extractBranchFromHtmlUrl(string $htmlUrl): string
@@ -336,6 +349,7 @@ class GithubReadmeFetcher
         if (preg_match('#/blob/([^/]+)/#', $htmlUrl, $m)) {
             return $m[1];
         }
+
         return 'HEAD';
     }
 
@@ -349,7 +363,7 @@ class GithubReadmeFetcher
 
         $token = $this->settings->get('gh-readme.github_token');
         if (is_string($token) && trim($token) !== '') {
-            $headers['Authorization'] = 'Bearer ' . trim($token);
+            $headers['Authorization'] = 'Bearer '.trim($token);
         }
 
         return $headers;
@@ -397,14 +411,19 @@ class GithubReadmeFetcher
 
     private function cacheKey(string $owner, string $repo): string
     {
-        return 'gh-readme:' . sha1(strtolower($owner) . '/' . strtolower($repo));
+        return 'gh-readme:'.sha1(strtolower($owner).'/'.strtolower($repo));
     }
 
     private function cacheTtl(): int
     {
         $minutes = (int) $this->settings->get('gh-readme.cache_minutes', 10);
-        if ($minutes < 1) $minutes = 1;
-        if ($minutes > 60) $minutes = 60;
+        if ($minutes < 1) {
+            $minutes = 1;
+        }
+        if ($minutes > 60) {
+            $minutes = 60;
+        }
+
         return $minutes * 60;
     }
 }
