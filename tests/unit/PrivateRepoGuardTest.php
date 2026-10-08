@@ -1,6 +1,6 @@
 <?php
 
-namespace Ernestdefoe\GhReadme\Tests;
+namespace Ernestdefoe\GhReadme\Tests\unit;
 
 use Ernestdefoe\GhReadme\Service\GithubReadmeFetcher;
 use Ernestdefoe\GhReadme\Service\ImageMirror;
@@ -30,10 +30,10 @@ class PrivateRepoGuardTest extends TestCase
 
     private function fetcher(array $responses, ?array &$calls = null): GithubReadmeFetcher
     {
-        $settings = $this->createMock(SettingsRepositoryInterface::class);
+        $settings = $this->createStub(SettingsRepositoryInterface::class);
         $settings->method('get')->willReturnCallback(fn ($key) => $key === 'gh-readme.github_token' ? 'test-token' : null);
 
-        $images = $this->createMock(ImageMirror::class);
+        $images = $this->createStub(ImageMirror::class);
         $images->method('mirror')->willReturnArgument(0);
 
         $mock = new MockHandler($responses);

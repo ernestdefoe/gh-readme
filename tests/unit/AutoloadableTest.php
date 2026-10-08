@@ -1,7 +1,8 @@
 <?php
 
-namespace Ernestdefoe\GhReadme\Tests;
+namespace Ernestdefoe\GhReadme\Tests\unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -24,7 +25,7 @@ use PHPUnit\Framework\TestCase;
  */
 class AutoloadableTest extends TestCase
 {
-    /** @dataProvider classes */
+    #[DataProvider('classes')]
     public function test_the_class_a_file_declares_can_be_loaded(string $class, string $file): void
     {
         $this->assertTrue(
@@ -36,7 +37,7 @@ class AutoloadableTest extends TestCase
 
     public static function classes(): array
     {
-        $root = dirname(__DIR__) . '/src';
+        $root = dirname(__DIR__, 2) . '/src';
         $cases = [];
 
         $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root));

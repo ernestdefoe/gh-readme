@@ -1,6 +1,6 @@
 <?php
 
-namespace Ernestdefoe\GhReadme\Tests;
+namespace Ernestdefoe\GhReadme\Tests\unit;
 
 use Ernestdefoe\GhReadme\Service\MarkdownToHtml;
 use PHPUnit\Framework\TestCase;
