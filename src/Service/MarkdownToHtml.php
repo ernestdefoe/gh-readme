@@ -47,7 +47,7 @@ class MarkdownToHtml
 
             // Fenced code first: nothing inside it is Markdown.
             if (preg_match('/^\s*```+\s*([A-Za-z0-9_+-]*)\s*$/', $line, $m)) {
-                $lang = $m[1] ?? '';
+                $lang = $m[1];
                 $body = [];
                 $i++;
 
@@ -153,9 +153,7 @@ class MarkdownToHtml
                 $i++;
             }
 
-            if ($para !== []) {
-                $out[] = '<p>' . $this->inline(implode(' ', $para)) . '</p>';
-            }
+            $out[] = '<p>' . $this->inline(implode(' ', $para)) . '</p>';
         }
 
         return implode("\n", $out);

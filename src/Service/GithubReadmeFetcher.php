@@ -56,9 +56,6 @@ class GithubReadmeFetcher
     /** Hard cap so a malicious upstream can't OOM the PHP worker. */
     private const MAX_BYTES = 2 * 1024 * 1024;
 
-    /** Cache TTL upper bound — admin setting overrides between 1–60 min. */
-    private const DEFAULT_TTL_SECONDS = 600;
-
     public function __construct(
         protected CacheRepository $cache,
         protected SettingsRepositoryInterface $settings,
