@@ -60,9 +60,7 @@ export default function attachPasteHandler(editor) {
    *         driver's own .el reference when present so any future
    *         wrapper element added by fof/rich-text still receives
    *         the listener. */
-  const el = (editor && editor.el)
-    || (isRichText() && editor.editor.view && editor.editor.view.dom)
-    || null;
+  const el = (editor && editor.el) || (isRichText() && editor.editor.view && editor.editor.view.dom) || null;
   if (!el || el.__ghReadmeHooked) return;
   el.__ghReadmeHooked = true;
 
@@ -98,10 +96,7 @@ async function handleGithubPaste(editor, el, url, isRichText) {
   if (isRichText) {
     /* Tiptap — show a toast. The Mithril alert manager returns a key
      * we can dismiss when the fetch resolves. */
-    loadingAlertKey = app.alerts.show(
-      { type: 'info', dismissible: false },
-      'Loading README from GitHub…'
-    );
+    loadingAlertKey = app.alerts.show({ type: 'info', dismissible: false }, 'Loading README from GitHub…');
   } else {
     /* Textarea — drop an inline italic marker the user can see at
      * the cursor position. Random ID so concurrent pastes don't
@@ -151,7 +146,7 @@ async function handleGithubPaste(editor, el, url, isRichText) {
         editor.insertAtCursor(markdown.trim(), false);
       }
     } else {
-      if (! replaceInTextarea(el, marker, '\n\n' + markdown.trim() + '\n\n')) {
+      if (!replaceInTextarea(el, marker, '\n\n' + markdown.trim() + '\n\n')) {
         /*
          * The marker is gone or unrecognisable — the editor rewrote it, or the
          * author edited over it while we were fetching. Say so rather than
@@ -228,6 +223,8 @@ function pluckErrorMessage(err) {
     if (err && err.response && err.response.errors && err.response.errors[0]) {
       return err.response.errors[0].detail || err.response.errors[0].title;
     }
-  } catch (_) { /* fall through */ }
+  } catch (_) {
+    /* fall through */
+  }
   return err && err.message ? err.message : null;
 }
