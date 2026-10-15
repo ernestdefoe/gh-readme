@@ -14,6 +14,7 @@ namespace Ernestdefoe\GhReadme\Api;
 use Ernestdefoe\GhReadme\Service\GithubReadmeFetcher;
 use Ernestdefoe\GhReadme\Service\MarkdownToHtml;
 use Flarum\Http\RequestUtil;
+use Flarum\Locale\TranslatorInterface;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
 use InvalidArgumentException;
 use Laminas\Diactoros\Response\JsonResponse;
@@ -39,7 +40,7 @@ class FetchReadmeController implements RequestHandlerInterface
     /** Fetches per member per ten minutes; cached READMEs count too, they're cheap. */
     private const PER_MEMBER = 20;
 
-    public function __construct(protected GithubReadmeFetcher $fetcher, protected CacheRepository $cache)
+    public function __construct(protected GithubReadmeFetcher $fetcher, protected CacheRepository $cache, protected TranslatorInterface $translator)
     {
     }
 
@@ -52,7 +53,7 @@ class FetchReadmeController implements RequestHandlerInterface
             $bucket = 'gh-readme:rate:'.$actor->id.':'.intdiv(time(), 600);
             $this->cache->add($bucket, 0, 600);
             if ($this->cache->increment($bucket) > self::PER_MEMBER) {
-                return $this->error('Too many README fetches — try again in a few minutes.', 429);
+                return $this->error($this->translator->trans('ernestdefoe-gh-readme.api.too_many'), 429);
             }
         }
 
@@ -60,7 +61,7 @@ class FetchReadmeController implements RequestHandlerInterface
         $url = isset($body['url']) ? (string) $body['url'] : '';
 
         if ($url === '' || mb_strlen($url) > 500) {
-            return $this->error('Missing or oversized url field.', 422);
+            return $this->error($this->translator->trans('ernestdefoe-gh-readme.api.missing_url'), 422);
         }
 
         try {

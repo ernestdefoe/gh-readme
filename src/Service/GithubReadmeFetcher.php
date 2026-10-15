@@ -11,6 +11,7 @@
 
 namespace Ernestdefoe\GhReadme\Service;
 
+use Flarum\Locale\TranslatorInterface;
 use Flarum\Settings\SettingsRepositoryInterface;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
@@ -61,7 +62,16 @@ class GithubReadmeFetcher
         protected SettingsRepositoryInterface $settings,
         protected LoggerInterface $log,
         protected ImageMirror $images,
+        protected ?TranslatorInterface $translator = null,
     ) {
+    }
+
+    /** A user-facing message in the forum's language (the bare key when no translator is wired, as in unit tests). */
+    protected function t(string $key, array $params = []): string
+    {
+        $key = 'ernestdefoe-gh-readme.api.'.$key;
+
+        return $this->translator ? $this->translator->trans($key, $params) : $key;
     }
 
     /**
@@ -81,7 +91,7 @@ class GithubReadmeFetcher
 
         $parts = parse_url($url);
         if ($parts === false || ! is_array($parts)) {
-            throw new InvalidArgumentException('Not a valid URL.');
+            throw new InvalidArgumentException($this->t('invalid_url'));
         }
 
         $scheme = strtolower($parts['scheme'] ?? '');
@@ -89,15 +99,15 @@ class GithubReadmeFetcher
         $path = $parts['path'] ?? '';
 
         if ($scheme !== 'https') {
-            throw new InvalidArgumentException('Only https:// GitHub URLs are accepted.');
+            throw new InvalidArgumentException($this->t('https_only'));
         }
         if ($host !== 'github.com' && $host !== 'www.github.com') {
-            throw new InvalidArgumentException('URL must point to github.com.');
+            throw new InvalidArgumentException($this->t('github_only'));
         }
 
         $segments = array_values(array_filter(explode('/', $path), fn ($s) => $s !== ''));
         if (count($segments) < 2) {
-            throw new InvalidArgumentException('URL is missing an owner/repo path.');
+            throw new InvalidArgumentException($this->t('missing_path'));
         }
 
         [$owner, $repo] = [$segments[0], $segments[1]];
@@ -108,7 +118,7 @@ class GithubReadmeFetcher
         }
 
         if (! preg_match(self::NAME_RE, $owner) || ! preg_match(self::NAME_RE, $repo)) {
-            throw new InvalidArgumentException('Owner or repo name has invalid characters.');
+            throw new InvalidArgumentException($this->t('invalid_name'));
         }
 
         return ['owner' => $owner, 'repo' => $repo];
@@ -138,7 +148,7 @@ class GithubReadmeFetcher
             // A README an admin fetched from a private repo is cached too; it
             // must never be handed to someone who couldn't have fetched it.
             if (! empty($cached['private']) && ! $allowPrivate) {
-                throw new RuntimeException('README not found — repo may be private or have no README.', 404);
+                throw new RuntimeException($this->t('not_found'), 404);
             }
 
             return array_merge($cached, ['cached' => true]);
@@ -156,7 +166,7 @@ class GithubReadmeFetcher
          * admins only; to anyone else they look exactly like a missing repo.
          */
         if ($private && ! $allowPrivate) {
-            throw new RuntimeException('README not found — repo may be private or have no README.', 404);
+            throw new RuntimeException($this->t('not_found'), 404);
         }
 
         $url = sprintf('https://api.github.com/repos/%s/%s/readme', rawurlencode($owner), rawurlencode($repo));
@@ -166,23 +176,23 @@ class GithubReadmeFetcher
         } catch (RequestException $e) {
             $this->log->warning('[gh-readme] network failure for '.$url.': '.$e->getMessage());
 
-            throw new RuntimeException('Could not reach GitHub.', 502, $e);
+            throw new RuntimeException($this->t('unreachable'), 502, $e);
         }
 
         $status = $response->getStatusCode();
         if ($status === 404) {
-            throw new RuntimeException('README not found — repo may be private or have no README.', 404);
+            throw new RuntimeException($this->t('not_found'), 404);
         }
         if ($status === 403) {
             $remaining = $response->getHeaderLine('X-RateLimit-Remaining');
             if ($remaining === '0') {
-                throw new RuntimeException('GitHub rate limit reached. Try again in a few minutes.', 429);
+                throw new RuntimeException($this->t('rate_limit'), 429);
             }
 
-            throw new RuntimeException('GitHub denied the request (403).', 403);
+            throw new RuntimeException($this->t('denied'), 403);
         }
         if ($status >= 400) {
-            throw new RuntimeException("GitHub returned HTTP $status.", $status >= 500 ? 502 : 400);
+            throw new RuntimeException($this->t('http_status', ['status' => $status]), $status >= 500 ? 502 : 400);
         }
 
         // Read body in capped chunks to defend against runaway upstream payloads.
@@ -191,22 +201,22 @@ class GithubReadmeFetcher
         while (! $stream->eof()) {
             $body .= $stream->read(16384);
             if (strlen($body) > self::MAX_BYTES) {
-                throw new RuntimeException('README exceeds 2 MB cap.', 413);
+                throw new RuntimeException($this->t('too_large'), 413);
             }
         }
 
         $json = json_decode($body, true);
         if (! is_array($json) || ! isset($json['content']) || ! isset($json['encoding'])) {
-            throw new RuntimeException('Unexpected GitHub response shape.', 502);
+            throw new RuntimeException($this->t('bad_shape'), 502);
         }
 
         if ($json['encoding'] !== 'base64') {
-            throw new RuntimeException("Unsupported README encoding: {$json['encoding']}.", 502);
+            throw new RuntimeException($this->t('bad_encoding', ['encoding' => $json['encoding']]), 502);
         }
 
         $raw = base64_decode($json['content'], true);
         if ($raw === false) {
-            throw new RuntimeException('README payload was not valid base64.', 502);
+            throw new RuntimeException($this->t('bad_base64'), 502);
         }
 
         $defaultBranch = is_string($json['html_url'] ?? null)

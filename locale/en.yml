@@ -4,6 +4,29 @@ ernestdefoe-gh-readme:
     error_generic: "Could not fetch the README."
     error_not_found: "README not found — repo may be private or have no README."
     error_rate_limit: "GitHub rate limit reached. Try again in a few minutes."
+    error_empty: Empty README returned.
+    error_insert: The README arrived but could not be inserted — the placeholder was no longer in the post.
   admin:
     settings:
       heading: GitHub README Paste
+      token_label: GitHub Personal Access Token (optional)
+      token_help: "Used to raise GitHub's API rate limit from 60/hour-per-IP (unauthenticated) to 5000/hour. No scopes required for public repos. Generate at https://github.com/settings/tokens."
+      cache_label: Cache duration (minutes)
+      cache_help: How long the server caches each README before refetching. Clamped 1–60.
+  api:
+    too_many: Too many README fetches — try again in a few minutes.
+    missing_url: Missing or oversized url field.
+    invalid_url: Not a valid URL.
+    https_only: "Only https:// GitHub URLs are accepted."
+    github_only: URL must point to github.com.
+    missing_path: URL is missing an owner/repo path.
+    invalid_name: Owner or repo name has invalid characters.
+    not_found: "README not found — repo may be private or have no README."
+    unreachable: Could not reach GitHub.
+    rate_limit: GitHub rate limit reached. Try again in a few minutes.
+    denied: GitHub denied the request (403).
+    http_status: "GitHub returned HTTP {status}."
+    too_large: README exceeds 2 MB cap.
+    bad_shape: Unexpected GitHub response shape.
+    bad_encoding: "Unsupported README encoding: {encoding}."
+    bad_base64: README payload was not valid base64.

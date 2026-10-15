@@ -96,7 +96,7 @@ async function handleGithubPaste(editor, el, url, isRichText) {
   if (isRichText) {
     /* Tiptap — show a toast. The Mithril alert manager returns a key
      * we can dismiss when the fetch resolves. */
-    loadingAlertKey = app.alerts.show({ type: 'info', dismissible: false }, 'Loading README from GitHub…');
+    loadingAlertKey = app.alerts.show({ type: 'info', dismissible: false }, app.translator.trans('ernestdefoe-gh-readme.forum.loading'));
   } else {
     /* Textarea — drop an inline italic marker the user can see at
      * the cursor position. Random ID so concurrent pastes don't
@@ -117,7 +117,7 @@ async function handleGithubPaste(editor, el, url, isRichText) {
     const html = attrs.html;
 
     if (typeof markdown !== 'string' || markdown.length === 0) {
-      throw new Error('Empty README returned.');
+      throw new Error(app.translator.trans('ernestdefoe-gh-readme.forum.error_empty'));
     }
 
     if (isRichText) {
@@ -154,11 +154,11 @@ async function handleGithubPaste(editor, el, url, isRichText) {
          * reads "Loading README from GitHub…" and an author with no reason to
          * think anything went wrong.
          */
-        app.alerts.show({ type: 'error' }, 'The README arrived but could not be inserted — the placeholder was no longer in the post.');
+        app.alerts.show({ type: 'error' }, app.translator.trans('ernestdefoe-gh-readme.forum.error_insert'));
       }
     }
   } catch (err) {
-    const errMsg = pluckErrorMessage(err) || 'Could not fetch the README.';
+    const errMsg = pluckErrorMessage(err) || app.translator.trans('ernestdefoe-gh-readme.forum.error_generic');
 
     if (isRichText) {
       /* Tiptap: nothing to clean up in the document (we didn't insert
@@ -180,7 +180,7 @@ async function handleGithubPaste(editor, el, url, isRichText) {
 
 function makeLoadingMarker() {
   const id = Math.random().toString(36).slice(2, 10);
-  return '\n\n*Loading README from GitHub… (' + id + ')*\n\n';
+  return '\n\n*' + app.translator.trans('ernestdefoe-gh-readme.forum.loading') + ' (' + id + ')*\n\n';
 }
 
 /**

@@ -1,4 +1,7 @@
+import app from 'flarum/admin/app';
 import { Admin } from 'flarum/common/extenders';
+
+const t = (key) => app.translator.trans('ernestdefoe-gh-readme.admin.settings.' + key);
 
 /**
  * Admin settings.
@@ -17,17 +20,17 @@ export default [
     .setting(() => ({
       setting: 'gh-readme.github_token',
       type: 'password',
-      label: 'GitHub Personal Access Token (optional)',
+      label: t('token_label'),
       placeholder: 'ghp_…',
-      help: "Used to raise GitHub's API rate limit from 60/hour-per-IP (unauthenticated) to 5000/hour. No scopes required for public repos. Generate at https://github.com/settings/tokens.",
+      help: t('token_help'),
     }))
     .setting(() => ({
       setting: 'gh-readme.cache_minutes',
       type: 'number',
       min: 1,
       max: 60,
-      label: 'Cache duration (minutes)',
+      label: t('cache_label'),
       placeholder: '10',
-      help: 'How long the server caches each README before refetching. Clamped 1–60.',
+      help: t('cache_help'),
     })),
 ];
